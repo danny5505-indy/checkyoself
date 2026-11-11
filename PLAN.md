@@ -61,9 +61,22 @@
 - AI plan builder (suggests a plan from a goal)
 - George's account
 
-## Technical approach
-- Web app + hosted database with logins and live sync. Expected cost about $0–5/month.
+## Technical approach (approved)
+- **App:** Next.js (React + TypeScript), installable on the Home Screen, with web push notifications
+- **Database, logins, live sync:** Supabase (Dan has an account). Access rules enforce visibility:
+  parents see all; siblings see only goals marked Shared.
+- **Hosting:** Vercel (free personal tier); deploys automatically from GitHub
+- **Logins:** everyone, kids included, signs in with their own email address
+- **Lunch menus:** monthly GitHub Actions job reads the public menu page (West Middle, Hazel Dell)
+- **Calendars:** district Google Calendar feed + Apple calendars via iCloud public share links
+- **Quotes:** built-in list of quotes and Bible verses; parents can add more
+- Expected cost: about $0/month (optional custom domain about $12/year)
 - Claude writes the code and explains it; Dan helps test and troubleshoot.
+
+## Screens (approved)
+Bottom tabs: **Today**, **Goals**, **Rewards**, **Lists**, **Calendar**.
+Behind the profile icon: **Parent dashboard** (progress, approvals, overrides, admin settings)
+and **My settings** (reminder times, notifications, profile).
 
 ## Research findings (Nov 11, 2026)
 - **School calendar: confirmed.** Noblesville publishes a public Google Calendar feed
