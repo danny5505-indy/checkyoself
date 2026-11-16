@@ -94,7 +94,8 @@ and **My settings** (reminder times, notifications, profile).
 - Stage 2 (goals, plans, Today, approvals): live
 - Stage 3 (points, badges, rewards): live
 - Stage 4 (lists, groceries, wish lists, to-dos): live
-- Stage 5 (calendar, lunch menus): built
+- Stage 5 (calendar, lunch menus): live
+- Notifications (daily reminders, falling behind, weekly summary, approvals): built
 - Lunch menus are imported by a GitHub Actions job (`.github/workflows/menus.yml`),
   which reads the district's public menu pages like a visitor would.
 

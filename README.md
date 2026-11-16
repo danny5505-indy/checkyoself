@@ -41,6 +41,19 @@ npm run dev               # open http://localhost:3000
 
 To wipe the local database and re-run all migrations: `npx supabase db reset`.
 
+## Notifications
+
+- Each device turns notifications on in My settings (on iPhone, only from the Home Screen app).
+- A Supabase scheduled job (pg_cron + pg_net) calls `/api/cron/nudges` every 15 minutes with
+  `CRON_SECRET`. That sends daily reminders, falling-behind alerts and the Sunday summary.
+- Approval notifications are sent right away from the server actions.
+- Nothing is sent between 9 pm and 7 am.
+
+## Lunch menus
+
+`.github/workflows/menus.yml` runs `scripts/fetch-menus.cjs` weekly (and on demand from the
+Actions tab). It needs the repository secrets `SUPABASE_URL` and `SUPABASE_SECRET_KEY`.
+
 ## Checks
 
 ```bash

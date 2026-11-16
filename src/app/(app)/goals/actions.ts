@@ -2,6 +2,8 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { notifyApprovals, parentsOf } from "@/lib/push/send";
 import { z } from "zod";
 import { requireMember, requireParent } from "@/lib/auth";
 import { loadGoal } from "@/lib/goals/data";
@@ -58,6 +60,7 @@ export async function saveGoal(_prev: FormState, formData: FormData): Promise<Fo
   };
 
   let goalId = input.id;
+  let askParents = false;
 
   if (!goalId) {
     const { data, error } = await supabase
@@ -67,6 +70,7 @@ export async function saveGoal(_prev: FormState, formData: FormData): Promise<Fo
       .single();
     if (error || !data) return { error: `Couldn't create the goal: ${error?.message}` };
     goalId = data.id as string;
+    askParents = !isParent;
   } else {
     const existing = await loadGoal(goalId);
     if (!existing) return { error: "That goal doesn't exist anymore." };
@@ -75,6 +79,7 @@ export async function saveGoal(_prev: FormState, formData: FormData): Promise<Fo
     }
     // A kid editing a declined goal sends it back for approval.
     const resubmit = !isParent && existing.status === "declined";
+    askParents = resubmit;
     const { error } = await supabase
       .from("goals")
       .update(resubmit ? { ...fields, status: "pending" } : fields)
@@ -144,6 +149,17 @@ export async function saveGoal(_prev: FormState, formData: FormData): Promise<Fo
   }
 
   await syncGoalMilestones(goalId);
+  if (askParents) {
+    const id = goalId;
+    after(async () =>
+      notifyApprovals(await parentsOf(profile.family_id), {
+        title: `${profile.display_name} wants to start a goal`,
+        body: `${input.emoji} ${input.title}: tap to review the plan.`,
+        url: `/goals/${id}`,
+        tag: `goal-${id}`,
+      }),
+    );
+  }
   redirect(`/goals/${goalId}`);
 }
 
@@ -224,6 +240,20 @@ export async function reviewGoal(
     })
     .eq("id", goalId);
   if (error) return { error: `Couldn't save: ${error.message}` };
+  const { data: g } = await supabase.from("goals").select("owner_id, title, emoji").eq("id", goalId).single();
+  if (g) {
+    after(() =>
+      notifyApprovals([g.owner_id as string], {
+        title: decision === "approve" ? "Your goal was approved! 🎉" : "Your goal needs a few changes",
+        body:
+          decision === "approve"
+            ? `${g.emoji} ${g.title} is on your Today screen now.`
+            : `${g.emoji} ${g.title}${note.trim() ? `: "${note.trim().slice(0, 100)}"` : ""}`,
+        url: `/goals/${goalId}`,
+        tag: `goal-${goalId}`,
+      }),
+    );
+  }
   refresh();
   return { success: decision === "approve" ? "Approved." : "Sent back." };
 }

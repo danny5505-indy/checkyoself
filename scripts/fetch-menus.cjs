@@ -8,6 +8,8 @@
 //   SUPABASE_URL=… SUPABASE_SECRET_KEY=… node scripts/fetch-menus.cjs
 // Days a parent fixed by hand in the app are never overwritten.
 
+// A plain Node (CommonJS) script, run outside the Next.js app.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { chromium } = require("playwright");
 
 const DISTRICT_MENUS = "https://www.noblesvilleschools.org/departments/food-services/menus-more";

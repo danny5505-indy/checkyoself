@@ -1,6 +1,8 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { after } from "next/server";
+import { notifyApprovals, parentsOf } from "@/lib/push/send";
 import { z } from "zod";
 import { requireMember, requireParent } from "@/lib/auth";
 import { awardBadges } from "@/lib/points/sync";
@@ -44,6 +46,14 @@ export async function requestReward(rewardId: string): Promise<Result> {
     .from("redemptions")
     .insert({ family_id: profile.family_id, profile_id: profile.id, reward_id: rewardId, reward_title: "", reward_emoji: "", cost: 0 });
   if (error) return { error: friendly(error.message) };
+  after(async () =>
+    notifyApprovals(await parentsOf(profile.family_id, profile.id), {
+      title: `${profile.display_name} wants a reward`,
+      body: `${reward.title} (${reward.cost} points)`,
+      url: "/rewards",
+      tag: "reward-requests",
+    }),
+  );
   refresh();
   return { success: `Requested! A parent will approve "${reward.title}".` };
 }
@@ -65,8 +75,22 @@ export async function approveRedemption(redemptionId: string): Promise<Result> {
   const { error } = await supabase.rpc("approve_redemption", { target: redemptionId });
   if (error) return { error: friendly(error.message) };
 
-  const { data: r } = await supabase.from("redemptions").select("profile_id").eq("id", redemptionId).single();
-  if (r) await awardBadges(createAdminClient(), r.profile_id as string);
+  const { data: r } = await supabase
+    .from("redemptions")
+    .select("profile_id, reward_title, reward_emoji")
+    .eq("id", redemptionId)
+    .single();
+  if (r) {
+    await awardBadges(createAdminClient(), r.profile_id as string);
+    after(() =>
+      notifyApprovals([r.profile_id as string], {
+        title: "Reward approved! 🎁",
+        body: `${r.reward_emoji} ${r.reward_title} is yours.`,
+        url: "/rewards",
+        tag: `reward-${redemptionId}`,
+      }),
+    );
+  }
   refresh();
   return { success: "Approved. Points deducted." };
 }
@@ -77,6 +101,17 @@ export async function declineRedemption(redemptionId: string, reason: string): P
   const supabase = await createClient();
   const { error } = await supabase.rpc("decline_redemption", { target: redemptionId, reason });
   if (error) return { error: friendly(error.message) };
+  const { data: r } = await supabase.from("redemptions").select("profile_id, reward_title").eq("id", redemptionId).single();
+  if (r) {
+    after(() =>
+      notifyApprovals([r.profile_id as string], {
+        title: "Not this time",
+        body: `${r.reward_title}${reason.trim() ? `: "${reason.trim().slice(0, 100)}"` : ""}`,
+        url: "/rewards",
+        tag: `reward-${redemptionId}`,
+      }),
+    );
+  }
   refresh();
   return { success: "Declined." };
 }

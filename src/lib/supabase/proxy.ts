@@ -3,7 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
 
 // Pages that don't need a signed-in user.
-const PUBLIC_PATHS = ["/login", "/setup"];
+// (/api/cron checks its own password; /sw.js is the notification service worker.)
+const PUBLIC_PATHS = ["/login", "/setup", "/api/cron", "/sw.js"];
 
 // Refreshes the login session on every request and sends signed-out visitors to /login.
 export async function updateSession(request: NextRequest) {

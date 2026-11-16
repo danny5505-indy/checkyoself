@@ -2,12 +2,23 @@ import { Avatar } from "@/components/avatar";
 import { Card, PageHeader } from "@/components/page-header";
 import { SignOutButton } from "@/components/sign-out-button";
 import { requireMember } from "@/lib/auth";
+import { PushSettings } from "@/components/push/push-settings";
+import { createClient } from "@/lib/supabase/server";
 import { PasswordForm, ProfileForm } from "./forms";
 
 export const metadata = { title: "My settings" };
 
 export default async function SettingsPage() {
   const { profile, family, email } = await requireMember();
+  const supabase = await createClient();
+  const [{ data: prefs }, { count: deviceCount }] = await Promise.all([
+    supabase
+      .from("notification_prefs")
+      .select("daily_reminder, reminder_time, approvals, weekly_summary")
+      .eq("profile_id", profile.id)
+      .maybeSingle(),
+    supabase.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("profile_id", profile.id),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -22,6 +33,15 @@ export default async function SettingsPage() {
           </p>
           <p className="text-sm text-muted">{email}</p>
         </div>
+      </Card>
+
+      <Card>
+        <h2 className="mb-3 font-semibold text-ink">Notifications</h2>
+        <PushSettings
+          prefs={prefs ?? { daily_reminder: true, reminder_time: "19:00", approvals: true, weekly_summary: true }}
+          isParent={profile.role === "parent"}
+          deviceCount={deviceCount ?? 0}
+        />
       </Card>
 
       <Card>
