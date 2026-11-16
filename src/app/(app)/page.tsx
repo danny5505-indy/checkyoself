@@ -15,6 +15,9 @@ import {
   streak,
 } from "@/lib/goals/progress";
 import { loadRedemptions } from "@/lib/points/data";
+import { loadDueTodos } from "@/lib/lists/data";
+import { DueTodos } from "@/components/lists/due-todos";
+import { shortDay } from "@/lib/goals/dates";
 import { quoteOfTheDay } from "@/lib/quotes";
 import { greeting, longDate } from "@/lib/time";
 
@@ -29,7 +32,10 @@ export default async function TodayPage() {
   const myGoals = allGoals.filter((g) => g.owner_id === profile.id);
   const active = myGoals.filter((g) => g.status === "active");
   const pending = myGoals.filter((g) => g.status === "pending" || g.status === "declined");
-  const checkIns = await loadCheckIns(today, { profileId: profile.id });
+  const [checkIns, dueTodos] = await Promise.all([
+    loadCheckIns(today, { profileId: profile.id }),
+    loadDueTodos(profile.id, today),
+  ]);
 
   const items = active.flatMap((goal) =>
     goal.activities
@@ -161,6 +167,19 @@ export default async function TodayPage() {
           )}
         </Card>
       )}
+
+      <DueTodos
+        todos={dueTodos.map((t) => ({
+          id: t.id,
+          text: t.text,
+          due_date: t.due_date!,
+          overdue: t.due_date! < today,
+          dueLabel: shortDay(t.due_date!),
+          listId: t.lists.id,
+          listTitle: t.lists.title,
+          listEmoji: t.lists.emoji,
+        }))}
+      />
 
       {active.length > 0 && (
         <section aria-labelledby="goals-heading" className="space-y-2">
