@@ -5,6 +5,7 @@ import { ReviewButtons } from "@/components/goals/goal-actions";
 import { AdjustPointsForm } from "@/components/rewards/adjust-points-form";
 import { Card, PageHeader } from "@/components/page-header";
 import { requireParent } from "@/lib/auth";
+import { SCHOOLS } from "@/lib/schools";
 import { loadCheckIns, loadVisibleGoals } from "@/lib/goals/data";
 import { todayISO } from "@/lib/goals/dates";
 import { loadBalances, loadRedemptions } from "@/lib/points/data";
@@ -20,7 +21,7 @@ export default async function ParentPage() {
   const supabase = await createClient();
   const { data: members } = await supabase
     .from("profiles")
-    .select("id, family_id, display_name, role, color, created_at")
+    .select("id, family_id, display_name, role, color, school, created_at")
     .order("role", { ascending: true })
     .order("created_at", { ascending: true })
     .returns<Profile[]>();
@@ -152,7 +153,10 @@ export default async function ParentPage() {
                       {m.display_name}
                       {m.id === me.id && <span className="text-muted"> (you)</span>}
                     </p>
-                    <p className="text-sm text-muted">{m.role === "parent" ? "Parent" : "Kid"}</p>
+                    <p className="text-sm text-muted">
+                      {m.role === "parent" ? "Parent" : "Kid"}
+                      {m.school && SCHOOLS[m.school] && ` · ${SCHOOLS[m.school].name}`}
+                    </p>
                   </div>
                   <span className="text-sm font-medium text-brand-strong group-open:hidden">Edit</span>
                   <span className="hidden text-sm font-medium text-muted group-open:inline">Close</span>

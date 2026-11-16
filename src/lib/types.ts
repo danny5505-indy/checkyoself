@@ -6,6 +6,7 @@ export type Profile = {
   display_name: string;
   role: FamilyRole;
   color: string;
+  school: string | null;
   created_at: string;
 };
 

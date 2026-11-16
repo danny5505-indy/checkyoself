@@ -1,0 +1,31 @@
+# Imports the Noblesville Schools lunch menus into the app.
+# Needs two repository secrets: SUPABASE_URL and SUPABASE_SECRET_KEY
+# (GitHub repo → Settings → Secrets and variables → Actions).
+name: Update school lunch menus
+
+on:
+  schedule:
+    # Mondays, plus the 1st and 26th of each month (to catch next month early). Times are UTC.
+    - cron: "17 11 * * 1"
+    - cron: "17 11 1,26 * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  menus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/fetch-menus.cjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}

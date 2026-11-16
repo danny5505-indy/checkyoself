@@ -20,11 +20,18 @@ import { DueTodos } from "@/components/lists/due-todos";
 import { shortDay } from "@/lib/goals/dates";
 import { quoteOfTheDay } from "@/lib/quotes";
 import { greeting, longDate } from "@/lib/time";
+import { Avatar } from "@/components/avatar";
+import { MenuLine } from "@/components/calendar/menu-card";
+import { ensureDistrictCalendar, loadEvents } from "@/lib/calendar/data";
+import { eventsOnDay, timeLabel } from "@/lib/calendar/days";
+import { loadFamily } from "@/lib/family";
+import { loadMenus } from "@/lib/menus/data";
+import { levelOf } from "@/lib/schools";
 
 export const metadata = { title: "Today" };
 
 export default async function TodayPage() {
-  const { profile } = await requireMember();
+  const { profile, family } = await requireMember();
   const today = todayISO();
   const quote = quoteOfTheDay();
 
@@ -32,10 +39,20 @@ export default async function TodayPage() {
   const myGoals = allGoals.filter((g) => g.owner_id === profile.id);
   const active = myGoals.filter((g) => g.status === "active");
   const pending = myGoals.filter((g) => g.status === "pending" || g.status === "declined");
-  const [checkIns, dueTodos] = await Promise.all([
+  await ensureDistrictCalendar(family.id);
+  const members = await loadFamily();
+  // A kid sees their own lunch; parents see each kid's.
+  const lunchKids = members.filter(
+    (m) => levelOf(m.school) && (profile.role === "parent" || m.id === profile.id),
+  );
+  const weekday = ![0, 6].includes(new Date(`${today}T12:00:00Z`).getUTCDay());
+  const [checkIns, dueTodos, { events }, menus] = await Promise.all([
     loadCheckIns(today, { profileId: profile.id }),
     loadDueTodos(profile.id, today),
+    loadEvents(family.id, new Date(`${today}T00:00:00-05:00`), new Date(`${today}T23:59:59-05:00`)),
+    weekday ? loadMenus([...new Set(lunchKids.map((k) => levelOf(k.school)!))], today, today) : Promise.resolve([]),
   ]);
+  const todaysEvents = eventsOnDay(events, today);
 
   const items = active.flatMap((goal) =>
     goal.activities
@@ -88,6 +105,53 @@ export default async function TodayPage() {
           <footer className="mt-2 text-sm text-muted">— {quote.source}</footer>
         </blockquote>
       </Card>
+
+      {(todaysEvents.length > 0 || (weekday && lunchKids.length > 0)) && (
+        <Card>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-bold text-ink">Today</h2>
+            <Link href="/calendar" className="text-sm font-semibold text-brand-strong">
+              Calendar →
+            </Link>
+          </div>
+          {todaysEvents.length > 0 ? (
+            <ul className="space-y-1.5">
+              {todaysEvents.map((e) => (
+                <li key={e.id} className="flex items-start gap-2 text-sm">
+                  <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: e.color }} aria-hidden="true" />
+                  <span className="w-14 shrink-0 text-muted">{timeLabel(e)}</span>
+                  <span className="min-w-0 text-ink">{e.title}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted">Nothing on the calendar today.</p>
+          )}
+          {weekday && lunchKids.length > 0 && (
+            <div className="mt-3 space-y-2 border-t border-line pt-3">
+              {lunchKids.map((k) => (
+                <MenuLine
+                  key={k.id}
+                  menu={menus.find((m) => m.level === levelOf(k.school))}
+                  label={
+                    <span className="mr-1 inline-flex items-center gap-1 align-middle">
+                      <span aria-hidden="true">🍽</span>
+                      {profile.role === "parent" ? (
+                        <>
+                          <Avatar name={k.display_name} color={k.color} size="sm" />
+                          <span className="sr-only">{k.display_name}&apos;s lunch:</span>
+                        </>
+                      ) : (
+                        <span className="font-medium text-muted">Lunch:</span>
+                      )}
+                    </span>
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       {profile.role === "parent" && (
         <Link href="/parent" className="block">

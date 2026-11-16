@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { ColorPicker } from "@/components/color-picker";
 import { Field, FormMessage, SubmitButton } from "@/components/form";
+import { SCHOOLS } from "@/lib/schools";
 import type { Profile } from "@/lib/types";
 import { addMember, renameFamily, resetMemberPassword, updateMember } from "./actions";
 
@@ -52,6 +53,22 @@ export function AddMemberForm() {
         required
       />
       <RolePicker key={`role-${state?.values?.role}`} defaultValue={state?.values?.role} />
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium text-ink">School (kids)</span>
+        <select
+          name="school"
+          defaultValue={state?.values?.school ?? ""}
+          key={`school-${state?.values?.school}`}
+          className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-base text-ink outline-none focus:border-brand"
+        >
+          <option value="">Not in school / not set</option>
+          {Object.entries(SCHOOLS).map(([key, s]) => (
+            <option key={key} value={key}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      </label>
       <ColorPicker key={`color-${state?.values?.color}`} name="color" defaultValue={state?.values?.color ?? "#0891b2"} />
       <FormMessage state={state} />
       <SubmitButton pendingText="Adding…">Add member</SubmitButton>
@@ -70,6 +87,22 @@ export function MemberEditor({ member, isMe }: { member: Profile; isMe: boolean 
         {isMe && <input type="hidden" name="role" value={member.role} />}
         <Field label="Name" name="display_name" defaultValue={member.display_name} maxLength={40} required />
         <RolePicker defaultValue={member.role} disabled={isMe} />
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-ink">School</span>
+          <select
+            name="school"
+            defaultValue={member.school ?? ""}
+            className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-base text-ink outline-none focus:border-brand"
+          >
+            <option value="">Not in school / not set</option>
+            {Object.entries(SCHOOLS).map(([key, s]) => (
+              <option key={key} value={key}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-xs text-muted">Decides which school lunch menu they see.</span>
+        </label>
         <FormMessage state={state} />
         <SubmitButton>Save</SubmitButton>
       </form>

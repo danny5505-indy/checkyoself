@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireParent } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { SCHOOLS } from "@/lib/schools";
 import { PROFILE_COLORS, type FamilyRole, type FormState } from "@/lib/types";
 
 const MIN_PASSWORD = 8;
@@ -31,7 +32,9 @@ export async function addMember(_prev: FormState, formData: FormData): Promise<F
   const password = String(formData.get("password") ?? "");
   const role = parseRole(formData.get("role"));
   const color = String(formData.get("color") ?? PROFILE_COLORS[0]);
-  const values = { display_name: displayName, email, role: role ?? "kid", color };
+  const schoolRaw = String(formData.get("school") ?? "");
+  const school = schoolRaw && SCHOOLS[schoolRaw] ? schoolRaw : null;
+  const values = { display_name: displayName, email, role: role ?? "kid", color, school: school ?? "" };
 
   if (!displayName || displayName.length > 40) return { error: "Enter a name up to 40 characters.", values };
   if (!email.includes("@")) return { error: "Enter a valid email address.", values };
@@ -41,12 +44,15 @@ export async function addMember(_prev: FormState, formData: FormData): Promise<F
   }
 
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.createUser({
+  const { data: created, error } = await admin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
     user_metadata: { family_id: family.id, role, display_name: displayName, color },
   });
+  if (!error && created.user && school) {
+    await admin.from("profiles").update({ school }).eq("id", created.user.id);
+  }
   if (error) {
     const taken = /already been registered|already exists/i.test(error.message);
     return {
@@ -66,6 +72,8 @@ export async function updateMember(_prev: FormState, formData: FormData): Promis
   const memberId = String(formData.get("member_id") ?? "");
   const displayName = String(formData.get("display_name") ?? "").trim();
   const role = parseRole(formData.get("role"));
+  const schoolRaw = String(formData.get("school") ?? "");
+  const school = schoolRaw && SCHOOLS[schoolRaw] ? schoolRaw : null;
 
   if (!(await assertSameFamily(family.id, memberId))) return { error: "That person isn't in your family." };
   if (!displayName || displayName.length > 40) return { error: "Enter a name up to 40 characters." };
@@ -77,7 +85,7 @@ export async function updateMember(_prev: FormState, formData: FormData): Promis
   const supabase = await createClient();
   const { error } = await supabase
     .from("profiles")
-    .update({ display_name: displayName, role })
+    .update({ display_name: displayName, role, school })
     .eq("id", memberId);
   if (error) return { error: `Couldn't save: ${error.message}` };
 

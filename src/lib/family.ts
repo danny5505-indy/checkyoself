@@ -7,7 +7,7 @@ export async function loadFamily(): Promise<Profile[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, family_id, display_name, role, color, created_at")
+    .select("id, family_id, display_name, role, color, school, created_at")
     .order("role", { ascending: true })
     .order("created_at", { ascending: true })
     .returns<Profile[]>();

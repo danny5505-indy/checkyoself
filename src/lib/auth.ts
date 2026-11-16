@@ -16,7 +16,7 @@ export const getCurrentMember = cache(async () => {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, family_id, display_name, role, color, created_at")
+    .select("id, family_id, display_name, role, color, school, created_at")
     .eq("id", userId)
     .single<Profile>();
   if (!profile) return null;

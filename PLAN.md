@@ -89,7 +89,16 @@ and **My settings** (reminder times, notifications, profile).
   **Decision:** the app reads the public menu page once a month, like a browser would.
   Backup: upload a photo or paste of the menu and the app fills it in.
 
-## First build steps
+## Build status
+- Stage 1 (foundation, sign-in, family): live
+- Stage 2 (goals, plans, Today, approvals): live
+- Stage 3 (points, badges, rewards): live
+- Stage 4 (lists, groceries, wish lists, to-dos): live
+- Stage 5 (calendar, lunch menus): built
+- Lunch menus are imported by a GitHub Actions job (`.github/workflows/menus.yml`),
+  which reads the district's public menu pages like a visitor would.
+
+## First build steps (done)
 1. Allow noblesvilleschools.org (and any menu service it uses) in the build environment's network settings; check how the menu and calendar sources are published.
 2. Set up the code repository (GitHub) so work persists between sessions.
 3. Agree on the tech stack and the screens, then start building.
