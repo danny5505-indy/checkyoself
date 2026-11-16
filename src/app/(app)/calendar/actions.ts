@@ -3,6 +3,7 @@
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { requireParent } from "@/lib/auth";
+import { refreshFeed } from "@/lib/calendar/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { FormState } from "@/lib/types";
@@ -29,19 +30,26 @@ export async function addCalendar(_prev: FormState, formData: FormData): Promise
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Please check the form." };
 
   // Make sure the link works before saving it.
+  let text = "";
   try {
     const res = await fetch(parsed.data.url.replace(/^webcal:\/\//i, "https://"), { signal: AbortSignal.timeout(10_000) });
-    const text = res.ok ? await res.text() : "";
-    if (!text.includes("BEGIN:VCALENDAR")) {
-      return { error: "That link didn't return a calendar. Check that the calendar is set to Public and the link is complete." };
-    }
+    text = res.ok ? await res.text() : "";
   } catch {
     return { error: "Couldn't reach that calendar link. Check it and try again." };
   }
+  if (!text.includes("BEGIN:VCALENDAR")) {
+    return { error: "That link didn't return a calendar. Check that the calendar is set to Public and the link is complete." };
+  }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("calendar_sources").insert({ ...parsed.data, family_id: family.id });
-  if (error) return { error: `Couldn't save: ${error.message}` };
+  const { data: source, error } = await supabase
+    .from("calendar_sources")
+    .insert({ ...parsed.data, family_id: family.id })
+    .select("id, name, url, kind, color")
+    .single();
+  if (error || !source) return { error: `Couldn't save: ${error?.message}` };
+  // Store its events now so the calendar shows them right away.
+  await refreshFeed(createAdminClient(), source, text);
   refresh();
   return { success: `Added "${parsed.data.name}".` };
 }

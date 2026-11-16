@@ -14,18 +14,14 @@ export const getCurrentMember = cache(async () => {
   const userId = claims?.claims?.sub;
   if (!userId) return null;
 
-  const { data: profile } = await supabase
+  // Profile and family in one query.
+  const { data } = await supabase
     .from("profiles")
-    .select("id, family_id, display_name, role, color, school, created_at")
+    .select("id, family_id, display_name, role, color, school, created_at, families(id, name)")
     .eq("id", userId)
-    .single<Profile>();
-  if (!profile) return null;
-
-  const { data: family } = await supabase
-    .from("families")
-    .select("id, name")
-    .eq("id", profile.family_id)
-    .single<Family>();
+    .single<Profile & { families: Family | null }>();
+  if (!data) return null;
+  const { families: family, ...profile } = data;
 
   return {
     profile,

@@ -4,7 +4,7 @@ import { ChevronRight } from "@/components/icons";
 import { Card, PageHeader } from "@/components/page-header";
 import { requireMember } from "@/lib/auth";
 import { loadFamily } from "@/lib/family";
-import { ensureGroceryList, loadLists, type ListSummary } from "@/lib/lists/data";
+import { createGroceryList, loadLists, type ListSummary } from "@/lib/lists/data";
 import { KIND_INFO } from "@/lib/lists/types";
 import type { Profile } from "@/lib/types";
 
@@ -39,8 +39,14 @@ function ListCard({ list, owner, showOwner }: { list: ListSummary; owner?: Profi
 
 export default async function ListsPage() {
   const { profile, family } = await requireMember();
-  await ensureGroceryList(family.id, profile.id);
-  const [lists, members] = await Promise.all([loadLists(), loadFamily()]);
+  const [initialLists, members] = await Promise.all([loadLists(), loadFamily()]);
+  let lists = initialLists;
+  // First visit only: create the family grocery list. (Use the returned row: reading the
+  // lists again with the same query would get Next.js's remembered first answer.)
+  if (!lists.some((l) => l.kind === "grocery")) {
+    const created = await createGroceryList(family.id, profile.id);
+    if (created) lists = [created, ...lists];
+  }
   const byId = new Map(members.map((m) => [m.id, m]));
 
   const grocery = lists.find((l) => l.kind === "grocery");

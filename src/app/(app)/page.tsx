@@ -22,7 +22,7 @@ import { quoteOfTheDay } from "@/lib/quotes";
 import { greeting, longDate } from "@/lib/time";
 import { Avatar } from "@/components/avatar";
 import { MenuLine } from "@/components/calendar/menu-card";
-import { ensureDistrictCalendar, loadEvents } from "@/lib/calendar/data";
+import { loadEvents } from "@/lib/calendar/data";
 import { eventsOnDay, timeLabel } from "@/lib/calendar/days";
 import { loadFamily } from "@/lib/family";
 import { loadMenus } from "@/lib/menus/data";
@@ -35,23 +35,24 @@ export default async function TodayPage() {
   const today = todayISO();
   const quote = quoteOfTheDay();
 
-  const allGoals = await loadVisibleGoals();
-  const myGoals = allGoals.filter((g) => g.owner_id === profile.id);
-  const active = myGoals.filter((g) => g.status === "active");
-  const pending = myGoals.filter((g) => g.status === "pending" || g.status === "declined");
-  await ensureDistrictCalendar(family.id);
-  const members = await loadFamily();
-  // A kid sees their own lunch; parents see each kid's.
-  const lunchKids = members.filter(
-    (m) => levelOf(m.school) && (profile.role === "parent" || m.id === profile.id),
-  );
   const weekday = ![0, 6].includes(new Date(`${today}T12:00:00Z`).getUTCDay());
-  const [checkIns, dueTodos, { events }, menus] = await Promise.all([
+  const isParent = profile.role === "parent";
+
+  // Everything at once: one round of database calls instead of several in a row.
+  const [allGoals, members, checkIns, dueTodos, { events }, menus, requests] = await Promise.all([
+    loadVisibleGoals(),
+    loadFamily(),
     loadCheckIns(today, { profileId: profile.id }),
     loadDueTodos(profile.id, today),
     loadEvents(family.id, new Date(`${today}T00:00:00-05:00`), new Date(`${today}T23:59:59-05:00`)),
-    weekday ? loadMenus([...new Set(lunchKids.map((k) => levelOf(k.school)!))], today, today) : Promise.resolve([]),
+    weekday ? loadMenus(["elementary", "middle", "high"], today, today) : Promise.resolve([]),
+    isParent ? loadRedemptions({ status: "requested" }) : Promise.resolve([]),
   ]);
+  const myGoals = allGoals.filter((g) => g.owner_id === profile.id);
+  const active = myGoals.filter((g) => g.status === "active");
+  const pending = myGoals.filter((g) => g.status === "pending" || g.status === "declined");
+  // A kid sees their own lunch; parents see each kid's.
+  const lunchKids = members.filter((m) => levelOf(m.school) && (isParent || m.id === profile.id));
   const todaysEvents = eventsOnDay(events, today);
 
   const items = active.flatMap((goal) =>
@@ -64,8 +65,7 @@ export default async function TodayPage() {
   const done = items.filter(isDone);
 
   const goalApprovals = profile.role === "parent" ? allGoals.filter((g) => g.status === "pending").length : 0;
-  const rewardRequests =
-    profile.role === "parent" ? (await loadRedemptions({ status: "requested" })).length : 0;
+  const rewardRequests = requests.length;
   const pendingApprovals = goalApprovals + rewardRequests;
   const waitingText = [
     goalApprovals && `${goalApprovals} ${goalApprovals === 1 ? "goal" : "goals"}`,

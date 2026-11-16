@@ -5,32 +5,27 @@ import { ReviewButtons } from "@/components/goals/goal-actions";
 import { AdjustPointsForm } from "@/components/rewards/adjust-points-form";
 import { Card, PageHeader } from "@/components/page-header";
 import { requireParent } from "@/lib/auth";
+import { loadFamily } from "@/lib/family";
 import { SCHOOLS } from "@/lib/schools";
 import { loadCheckIns, loadVisibleGoals } from "@/lib/goals/data";
 import { todayISO } from "@/lib/goals/dates";
 import { loadBalances, loadRedemptions } from "@/lib/points/data";
 import { amountsFor, dayRatio, describeSchedule, goalProgress, isDueToday } from "@/lib/goals/progress";
-import { createClient } from "@/lib/supabase/server";
-import type { Profile } from "@/lib/types";
 import { AddMemberForm, FamilyNameForm, MemberEditor } from "./forms";
 
 export const metadata = { title: "Parent dashboard" };
 
 export default async function ParentPage() {
   const { family, profile: me } = await requireParent();
-  const supabase = await createClient();
-  const { data: members } = await supabase
-    .from("profiles")
-    .select("id, family_id, display_name, role, color, school, created_at")
-    .order("role", { ascending: true })
-    .order("created_at", { ascending: true })
-    .returns<Profile[]>();
-
   const today = todayISO();
-  const goals = await loadVisibleGoals();
-  const checkIns = await loadCheckIns(today, { days: 14 });
+  const [members, goals, checkIns, balances, rewardRequests] = await Promise.all([
+    loadFamily(),
+    loadVisibleGoals(),
+    loadCheckIns(today, { days: 14 }),
+    loadBalances(),
+    loadRedemptions({ status: "requested" }),
+  ]);
   const waiting = goals.filter((g) => g.status === "pending");
-  const [balances, rewardRequests] = await Promise.all([loadBalances(), loadRedemptions({ status: "requested" })]);
   const kids = (members ?? []).filter((m) => m.role === "kid");
   const nameOf = (id: string) => (members ?? []).find((m) => m.id === id)?.display_name ?? "Someone";
 

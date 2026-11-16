@@ -3,7 +3,7 @@ import { Avatar } from "@/components/avatar";
 import { MenuLine } from "@/components/calendar/menu-card";
 import { PageHeader } from "@/components/page-header";
 import { requireMember } from "@/lib/auth";
-import { ensureDistrictCalendar, loadEvents } from "@/lib/calendar/data";
+import { loadEvents } from "@/lib/calendar/data";
 import { eventsOnDay, timeLabel } from "@/lib/calendar/days";
 import { loadFamily } from "@/lib/family";
 import { addDays, shortDay, todayISO, weekStart } from "@/lib/goals/dates";
@@ -24,8 +24,13 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const start = weekStart(requested);
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
 
-  await ensureDistrictCalendar(family.id);
-  const family_members = await loadFamily();
+  const range = [dayStart(start), dayStart(addDays(start, 7))] as const;
+  // Family, events and all three school menus at once.
+  const [family_members, { events, failed }, menus] = await Promise.all([
+    loadFamily(),
+    loadEvents(family.id, range[0], range[1]),
+    loadMenus(["elementary", "middle", "high"], start, addDays(start, 6)),
+  ]);
   // Kids grouped by which lunch menu they get.
   const byLevel = new Map<SchoolLevel, Profile[]>();
   for (const m of family_members) {
@@ -37,10 +42,6 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     ([, kids]) => profile.role === "parent" || kids.some((k) => k.id === profile.id),
   );
 
-  const [{ events, failed }, menus] = await Promise.all([
-    loadEvents(family.id, dayStart(start), dayStart(addDays(start, 7))),
-    loadMenus(visibleLevels.map(([l]) => l), start, addDays(start, 6)),
-  ]);
 
   const weekLabel = `${shortDay(start).replace(/^\w+, /, "")} – ${shortDay(addDays(start, 6)).replace(/^\w+, /, "")}`;
   const navClass = "rounded-xl border border-line bg-surface px-3 py-1.5 text-sm font-semibold text-ink";

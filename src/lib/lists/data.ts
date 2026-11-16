@@ -8,15 +8,17 @@ const ITEM_COLS =
 
 export type ListSummary = List & { shares: string[]; open: number; total: number };
 
-// Makes sure the family has its shared grocery list.
-export async function ensureGroceryList(familyId: string, profileId: string) {
+// Creates the family's shared grocery list and returns it (call when it's missing).
+// Returns null if someone else created it at the same moment.
+export async function createGroceryList(familyId: string, profileId: string): Promise<ListSummary | null> {
   const supabase = await createClient();
-  const { data } = await supabase.from("lists").select("id").eq("kind", "grocery").maybeSingle();
-  if (data) return;
   // The unique index makes a race harmless: a second insert just fails.
-  await supabase
+  const { data } = await supabase
     .from("lists")
-    .insert({ family_id: familyId, owner_id: profileId, title: "Groceries", emoji: "🛒", kind: "grocery" });
+    .insert({ family_id: familyId, owner_id: profileId, title: "Groceries", emoji: "🛒", kind: "grocery" })
+    .select(LIST_COLS)
+    .maybeSingle<List>();
+  return data ? { ...data, shares: [], open: 0, total: 0 } : null;
 }
 
 // Every list the signed-in person can see, with item counts.

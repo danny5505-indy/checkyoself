@@ -14,10 +14,9 @@ export const metadata = { title: "List" };
 export default async function ListPage({ params }: PageProps<"/lists/[id]">) {
   const { id } = await params;
   const { profile } = await requireMember();
-  const detail = await loadList(id);
+  const [detail, members] = await Promise.all([loadList(id), loadFamily()]);
   if (!detail) notFound();
   const { list, shares, items, checks, claims } = detail;
-  const members = await loadFamily();
   const owner = members.find((m) => m.id === list.owner_id);
   const isOwner = list.owner_id === profile.id;
   const canEditItems = list.kind !== "wishlist" || isOwner;

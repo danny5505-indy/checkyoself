@@ -16,8 +16,11 @@ const ORDER: Record<string, number> = { declined: 0, pending: 1, active: 2, comp
 export default async function GoalsPage() {
   const { profile } = await requireMember();
   const today = todayISO();
-  const [goals, family] = await Promise.all([loadVisibleGoals(), loadFamily()]);
-  const checkIns = await loadCheckIns(today, { days: 14 });
+  const [goals, family, checkIns] = await Promise.all([
+    loadVisibleGoals(),
+    loadFamily(),
+    loadCheckIns(today, { days: 14 }),
+  ]);
   const byId = new Map(family.map((p) => [p.id, p]));
 
   const sorted = [...goals].sort((a, b) => ORDER[a.status] - ORDER[b.status]);

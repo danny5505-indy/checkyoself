@@ -27,11 +27,10 @@ const HISTORY = 14;
 export default async function GoalPage({ params }: PageProps<"/goals/[id]">) {
   const { id } = await params;
   const { profile } = await requireMember();
-  const goal = await loadGoal(id);
+  const [goal, family] = await Promise.all([loadGoal(id), loadFamily()]);
   if (!goal) notFound();
 
   const today = todayISO();
-  const family = await loadFamily();
   const owner = family.find((p) => p.id === goal.owner_id);
   const checkIns = await loadCheckIns(today, { activityIds: goal.activities.map((a) => a.id) });
   const progress = goalProgress(goal, checkIns, today);
