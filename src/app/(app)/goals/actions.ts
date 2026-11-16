@@ -6,10 +6,18 @@ import { z } from "zod";
 import { requireMember, requireParent } from "@/lib/auth";
 import { loadGoal } from "@/lib/goals/data";
 import { goalInput } from "@/lib/goals/schema";
+import {
+  syncActivityPoints,
+  syncGoalMilestones,
+  syncGoalPoints,
+  syncMilestonePoints,
+} from "@/lib/points/sync";
 import { createClient } from "@/lib/supabase/server";
 import type { FormState } from "@/lib/types";
 
 type ActionResult = { error?: string; success?: string };
+// What a check-off earned (or lost), for the little "+10" and badge messages.
+export type CheckInResult = ActionResult & { points?: number; badges?: { emoji: string; name: string }[] };
 
 const uuid = z.string().uuid();
 const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -135,6 +143,7 @@ export async function saveGoal(_prev: FormState, formData: FormData): Promise<Fo
     if (error) return { error: `Couldn't save "${m.title}": ${error.message}` };
   }
 
+  await syncGoalMilestones(goalId);
   redirect(`/goals/${goalId}`);
 }
 
@@ -147,7 +156,7 @@ export async function setCheckIn(
   activityId: string,
   day: string,
   amount: number | null,
-): Promise<ActionResult> {
+): Promise<CheckInResult> {
   await requireMember();
   if (!uuid.safeParse(activityId).success || !isoDay.safeParse(day).success) {
     return { error: "Something went wrong. Please try again." };
@@ -164,8 +173,12 @@ export async function setCheckIn(
       .upsert({ activity_id: activityId, day, amount: value }, { onConflict: "activity_id,day" });
     if (error) return { error: friendlyDbError(error.message) };
   }
+  const result = await syncActivityPoints(activityId, day);
   refresh();
-  return {};
+  return {
+    points: result.delta,
+    badges: result.badges.map((b) => ({ emoji: b.emoji, name: b.name })),
+  };
 }
 
 function friendlyDbError(message: string): string {
@@ -190,6 +203,7 @@ export async function toggleMilestone(milestoneId: string, done: boolean): Promi
     .eq("id", milestoneId)
     .select("id");
   if (error || !data?.length) return { error: "You can't change this milestone." };
+  await syncMilestonePoints(milestoneId);
   refresh();
   return {};
 }
@@ -223,6 +237,7 @@ export async function setGoalStatus(
   const supabase = await createClient();
   const { error } = await supabase.from("goals").update({ status }).eq("id", goalId);
   if (error) return { error: `Couldn't save: ${error.message}` };
+  await syncGoalPoints(goalId);
   refresh();
   return {};
 }

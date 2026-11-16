@@ -2,10 +2,12 @@ import { Avatar } from "@/components/avatar";
 import Link from "next/link";
 import { GoalStatusBadge, TrackBadge } from "@/components/goals/badges";
 import { ReviewButtons } from "@/components/goals/goal-actions";
+import { AdjustPointsForm } from "@/components/rewards/adjust-points-form";
 import { Card, PageHeader } from "@/components/page-header";
 import { requireParent } from "@/lib/auth";
 import { loadCheckIns, loadVisibleGoals } from "@/lib/goals/data";
 import { todayISO } from "@/lib/goals/dates";
+import { loadBalances, loadRedemptions } from "@/lib/points/data";
 import { amountsFor, dayRatio, describeSchedule, goalProgress, isDueToday } from "@/lib/goals/progress";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
@@ -27,6 +29,7 @@ export default async function ParentPage() {
   const goals = await loadVisibleGoals();
   const checkIns = await loadCheckIns(today, { days: 14 });
   const waiting = goals.filter((g) => g.status === "pending");
+  const [balances, rewardRequests] = await Promise.all([loadBalances(), loadRedemptions({ status: "requested" })]);
   const kids = (members ?? []).filter((m) => m.role === "kid");
   const nameOf = (id: string) => (members ?? []).find((m) => m.id === id)?.display_name ?? "Someone";
 
@@ -60,6 +63,18 @@ export default async function ParentPage() {
         </section>
       )}
 
+      {rewardRequests.length > 0 && (
+        <Link href="/rewards" className="block">
+          <Card className="flex items-center gap-3 border-amber-500/40 transition hover:border-amber-500">
+            <span className="text-2xl" aria-hidden="true">🎁</span>
+            <p className="flex-1 font-semibold text-ink">
+              {rewardRequests.length} reward {rewardRequests.length === 1 ? "request" : "requests"} waiting
+            </p>
+            <span className="text-sm font-semibold text-brand-strong">Review →</span>
+          </Card>
+        </Link>
+      )}
+
       {kids.length > 0 && (
         <section className="space-y-2" aria-labelledby="glance">
           <h2 id="glance" className="text-lg font-bold text-ink">
@@ -82,6 +97,9 @@ export default async function ParentPage() {
                       {due.length ? `${doneCount} of ${due.length} done today` : "Nothing due today"}
                     </p>
                   </div>
+                  <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-sm font-bold text-amber-700 dark:text-amber-300">
+                    ⭐ {(balances.get(kid.id) ?? 0).toLocaleString()}
+                  </span>
                 </div>
                 {theirs.length > 0 ? (
                   <ul className="mt-3 divide-y divide-line">
@@ -107,6 +125,14 @@ export default async function ParentPage() {
                     </Link>
                   </p>
                 )}
+                <details className="mt-3 border-t border-line pt-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-brand-strong">
+                    Give or take points
+                  </summary>
+                  <div className="mt-3">
+                    <AdjustPointsForm profileId={kid.id} name={kid.display_name} />
+                  </div>
+                </details>
               </Card>
             );
           })}

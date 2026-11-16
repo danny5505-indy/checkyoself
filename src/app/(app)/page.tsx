@@ -14,6 +14,7 @@ import {
   isDueToday,
   streak,
 } from "@/lib/goals/progress";
+import { loadRedemptions } from "@/lib/points/data";
 import { quoteOfTheDay } from "@/lib/quotes";
 import { greeting, longDate } from "@/lib/time";
 
@@ -39,8 +40,16 @@ export default async function TodayPage() {
   const todo = items.filter((i) => !isDone(i));
   const done = items.filter(isDone);
 
-  const pendingApprovals =
-    profile.role === "parent" ? allGoals.filter((g) => g.status === "pending").length : 0;
+  const goalApprovals = profile.role === "parent" ? allGoals.filter((g) => g.status === "pending").length : 0;
+  const rewardRequests =
+    profile.role === "parent" ? (await loadRedemptions({ status: "requested" })).length : 0;
+  const pendingApprovals = goalApprovals + rewardRequests;
+  const waitingText = [
+    goalApprovals && `${goalApprovals} ${goalApprovals === 1 ? "goal" : "goals"}`,
+    rewardRequests && `${rewardRequests} reward ${rewardRequests === 1 ? "request" : "requests"}`,
+  ]
+    .filter(Boolean)
+    .join(" and ");
 
   const renderItem = ({ goal, activity, amounts }: (typeof items)[number]) => (
     <TodayItem
@@ -82,7 +91,7 @@ export default async function TodayPage() {
               <p className="font-semibold text-ink">Parent dashboard</p>
               <p className="text-sm text-muted">
                 {pendingApprovals > 0
-                  ? `${pendingApprovals} ${pendingApprovals === 1 ? "goal is" : "goals are"} waiting for your approval`
+                  ? `${waitingText} waiting for your approval`
                   : "Kids' progress, approvals and family settings"}
               </p>
             </div>
@@ -112,20 +121,26 @@ export default async function TodayPage() {
               style={{ width: `${(done.length / items.length) * 100}%` }}
             />
           </div>
-          {todo.length > 0 ? (
-            <ul className="space-y-2">{todo.map(renderItem)}</ul>
-          ) : (
+          {todo.length === 0 && (
             <Card className="text-center">
               <p className="text-2xl" aria-hidden="true">🎉</p>
               <p className="font-semibold text-ink">All done for today. Way to check yo self!</p>
             </Card>
           )}
-          {done.length > 0 && (
-            <>
-              <h3 className="pt-2 text-sm font-semibold uppercase tracking-wide text-muted">Done</h3>
-              <ul className="space-y-2">{done.map(renderItem)}</ul>
-            </>
-          )}
+          {/* One list, so an item keeps its "+10" message when it moves down to Done. */}
+          <ul className="space-y-2">
+            {[
+              ...todo.map(renderItem),
+              ...(done.length
+                ? [
+                    <li key="done-heading" className="pt-2 text-sm font-semibold uppercase tracking-wide text-muted">
+                      Done
+                    </li>,
+                  ]
+                : []),
+              ...done.map(renderItem),
+            ]}
+          </ul>
         </section>
       ) : (
         <Card className="text-center">

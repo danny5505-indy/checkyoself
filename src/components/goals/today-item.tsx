@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useOptimistic, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useState, useTransition } from "react";
 import { setCheckIn } from "@/app/(app)/goals/actions";
 import { CheckMark } from "@/components/logo";
 import type { Activity } from "@/lib/goals/types";
@@ -23,6 +23,14 @@ export function TodayItem({ activity, goal, day, amount, weekProgress, streak }:
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [feedback, setFeedback] = useState<{ points: number; badges: { emoji: string; name: string }[] } | null>(null);
+
+  // Hide the "+10" after a moment (badge news stays a bit longer).
+  useEffect(() => {
+    if (!feedback) return;
+    const t = setTimeout(() => setFeedback(null), feedback.badges.length ? 6000 : 2500);
+    return () => clearTimeout(t);
+  }, [feedback]);
 
   const target = activity.target_amount ?? 1;
   const current = optimisticAmount ?? 0;
@@ -36,6 +44,9 @@ export function TodayItem({ activity, goal, day, amount, weekProgress, streak }:
       setOptimisticAmount(next && next > 0 ? next : undefined);
       const result = await setCheckIn(activity.id, day, next);
       if (result.error) setError(result.error);
+      else if (result.points || result.badges?.length) {
+        setFeedback({ points: result.points ?? 0, badges: result.badges ?? [] });
+      }
     });
   }
 
@@ -138,6 +149,25 @@ export function TodayItem({ activity, goal, day, amount, weekProgress, streak }:
               Save
             </button>
           </form>
+        </div>
+      )}
+
+      {feedback && (
+        <div role="status" className="mt-2 space-y-1">
+          {feedback.points !== 0 && (
+            <p
+              className={`animate-[pop_0.4s_ease-out] text-sm font-bold ${
+                feedback.points > 0 ? "text-amber-600 dark:text-amber-300" : "text-muted"
+              }`}
+            >
+              {feedback.points > 0 ? `+${feedback.points}` : feedback.points} ⭐ points
+            </p>
+          )}
+          {feedback.badges.map((b) => (
+            <p key={b.name} className="rounded-xl bg-amber-500/15 px-3 py-2 text-sm font-semibold text-ink">
+              {b.emoji} New badge: {b.name}!
+            </p>
+          ))}
         </div>
       )}
 
