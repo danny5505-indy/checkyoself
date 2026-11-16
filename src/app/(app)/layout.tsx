@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/avatar";
 import { CheckMark } from "@/components/logo";
-import { TabBar } from "@/components/tab-bar";
+import { TabBar, TabBarView } from "@/components/tab-bar";
 import { PageSkeleton } from "@/components/page-skeleton";
 import { requireMember } from "@/lib/auth";
 
@@ -28,7 +28,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <main className="mx-auto max-w-2xl px-4 py-5">
         <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
       </main>
-      <TabBar />
+      <Suspense fallback={<TabBarView pathname={null} />}>
+        <TabBar />
+      </Suspense>
     </div>
   );
 }

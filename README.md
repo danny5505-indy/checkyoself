@@ -41,6 +41,14 @@ npm run dev               # open http://localhost:3000
 
 To wipe the local database and re-run all migrations: `npx supabase db reset`.
 
+## Checks
+
+```bash
+npm test          # unit tests (streaks, what's due, on-track status)
+npm run lint
+npm run build
+```
+
 ## Connecting the real Supabase project
 
 1. In the Supabase dashboard, open **SQL Editor** and run each file in `supabase/migrations/` in order.

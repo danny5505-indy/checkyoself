@@ -12,8 +12,13 @@ const TABS = [
   { href: "/calendar", label: "Calendar", Icon: CalendarIcon },
 ];
 
+// Highlights the current tab. Needs the URL, so it streams in after the static frame.
 export function TabBar() {
-  const pathname = usePathname();
+  return <TabBarView pathname={usePathname()} />;
+}
+
+// Shown for the first instant on dynamic pages, before the URL is known.
+export function TabBarView({ pathname }: { pathname: string | null }) {
   return (
     <nav
       aria-label="Main"
@@ -21,7 +26,8 @@ export function TabBar() {
     >
       <ul className="mx-auto grid max-w-2xl grid-cols-5">
         {TABS.map(({ href, label, Icon }) => {
-          const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const active =
+            pathname !== null && (href === "/" ? pathname === "/" : pathname.startsWith(href));
           return (
             <li key={href}>
               <Link
