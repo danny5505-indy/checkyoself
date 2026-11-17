@@ -7,7 +7,9 @@ See [PLAN.md](PLAN.md) for what's in it and the build stages.
 
 - **Next.js 16** (React, TypeScript, Tailwind CSS): the app, installable on the Home Screen
 - **Supabase**: logins, the database, and access rules (who can see what)
-- **Vercel**: hosting (later)
+- **Vercel**: hosting. Server functions run in Portland (`vercel.json` → `pdx1`), next to the
+  Supabase database in us-west-2. Keep these in the same region: every database call crosses
+  the distance between them.
 
 ## Where things are
 
